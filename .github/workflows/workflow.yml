@@ -51,4 +51,6 @@ jobs:
       - name: Build Docker image
         run: docker build -t ${{ env.image_name }} .
       - name: Publish image
-        run: docker push ${{ env.image_name }}
+        run: |
+          echo ${{ secrets.PACKAGE_SECRET }} | docker login ghcr.io --username kyujin-cho --password-stdin
+          docker push ${{ env.image_name }}
