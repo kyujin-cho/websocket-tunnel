@@ -21,7 +21,7 @@ jobs:
         run: |
           echo "::set-output name=package_version::${{ env.package_version }}"
           echo "::set-output name=current_version_json::${{ env.current_version_json }}"
-  'NPM Package':
+  'NPM-Registry':
     runs-on: ubuntu-latest
     needs: generate_output
     if: ${{ !needs.generate_output.outputs.current_version_json }}
@@ -50,7 +50,7 @@ jobs:
           npm publish
         env:
           NPM_CONFIG_USERCONFIG: /home/runner/.npmrc
-  'Docker Registry':
+  'Docker-Registry':
     runs-on: ubuntu-latest
     needs: generate_output
     steps:
