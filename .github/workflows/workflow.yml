@@ -47,10 +47,12 @@ jobs:
         run: |
           yarn tsc
       - name: Determine Docker image name
-        run: echo image_name=ghcr.io/kyujin-cho/websocket-tunnel:$(cat package.json| jq -r .version) >> $GITHUB_ENV
+        run: |
+          echo image_version=$(cat package.json| jq -r .version) >> $GITHUB_ENV
+          echo image_name=ghcr.io/kyujin-cho/websocket-tunnel >> $GITHUB_ENV
       - name: Build Docker image
-        run: docker build -t ${{ env.image_name }} .
+        run: docker build -t ${{env.image_name}}:${{ env.image_version }} -t  .
       - name: Publish image
         run: |
           echo ${{ secrets.PACKAGE_SECRET }} | docker login ghcr.io --username kyujin-cho --password-stdin
-          docker push ${{ env.image_name }}
+          docker push ${{ env.image_name }} --all-tags
