@@ -1,0 +1,13 @@
+.idea/
+.vscode/
+node_modules/
+build/
+tmp/
+temp/
+dist/
+.env
+yarn-error.log
+doc/
+.VSCodeCounter/
+coverage/
+report/
