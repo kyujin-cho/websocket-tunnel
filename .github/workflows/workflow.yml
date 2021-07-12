@@ -46,9 +46,9 @@ jobs:
       - name: Compile TypeScript
         run: |
           yarn tsc
+      - name: Determine Docker image name
+        run: echo image_name=ghcr.io/kyujin-cho/websocket-tunnel:$(cat package.json| jq -r .version) >> $GITHUB_ENV
       - name: Build Docker image
-        run: |
-          export IMAGE_NAME=ghcr.io/kyujin-cho/websocket-tunnel:$(cat package.json| jq -r .version)
-          docker build -t $IMAGE_NAME .
+        run: docker build -t ${{ env.image_name }} .
       - name: Publish image
-        run: docker push $IMAGE_NAME
+        run: docker push ${{ env.image_name }}
