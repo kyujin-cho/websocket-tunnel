@@ -72,7 +72,7 @@ jobs:
         run: |
           echo image_name=ghcr.io/kyujin-cho/websocket-tunnel >> $GITHUB_ENV
       - name: Build Docker image
-        run: docker build -t ${{ env.image_name }}:${{ needs.generate_output.outputs.image_version }} -t ${{ env.image_name }}:latest .
+        run: docker build -t ${{ env.image_name }}:${{ needs.generate_output.outputs.package_version }} -t ${{ env.image_name }}:latest .
       - name: Publish image
         run: |
           echo ${{ secrets.PACKAGE_SECRET }} | docker login ghcr.io --username kyujin-cho --password-stdin
