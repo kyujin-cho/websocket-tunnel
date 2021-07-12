@@ -1,7 +1,7 @@
 FROM node:14
 WORKDIR /app
 
-COPY dist /app
+COPY dist /app/dist
 COPY bin /app/bin
 COPY package.json /app
 COPY yarn.lock /app
