@@ -1,0 +1,51 @@
+name: Publish to Registry
+on: [push, pull_request]
+
+jobs:
+  npm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Node.js 14
+        uses: actions/setup-node@v2-beta
+        with:
+          node-version: '14'
+          registry-url: 'https://npm.pkg.github.com'
+          # Defaults to the user or organization that owns the workflow file
+      - name: Inject custom .npmjs file
+        run: |
+          echo "@kyujin-cho:registry=https://npm.pkg.github.com/" > /home/runner/.npmrc
+          echo "//npm.pkg.github.com/:_authToken=$NODE_AUTH_TOKEN" >> /home/runner/.npmrc
+          cat /home/runner/.npmrc
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_SECRET }}
+      - name: Install dependencies
+        run: |
+          yarn install
+        env:
+          NPM_CONFIG_USERCONFIG: /home/runner/.npmrc
+      - name: Publish package
+        run: |
+          npm publish
+        env:
+          NPM_CONFIG_USERCONFIG: /home/runner/.npmrc
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Node.js 14
+        uses: actions/setup-node@v2-beta
+        with:
+          node-version: '14'
+          registry-url: 'https://npm.pkg.github.com'
+          # Defaults to the user or organization that owns the workflow file
+      - name: Install dependencies
+        run: |
+          npm i -g yarn
+          yarn install
+      - name: Build Docker image
+        run: |
+          export IMAGE_NAME=ghcr.io/kyujin-cho/websocket-tunnel:$(cat package.json| jq -r .version)
+          docker build -t $IMAGE_NAME .
+      - name: Publish image
+        run: docker push $IMAGE_NAME

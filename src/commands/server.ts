@@ -71,14 +71,16 @@ export default class Server extends Command {
     passphrase: flags.string({
       char: 'P',
       description:
-        'If provided, limit access to client only with appropriate passphrase provided',
+        'If provided, limit access to client only with appropriate passphrase provided. This value will be ignored if another passphrase is provided via environment variable SERVER_PASSPHRASE.',
     }),
   }
 
   async run() {
     const {
-      flags: { port, verbosity, passphrase },
+      flags: { port, verbosity, passphrase: passphraseFlag },
     } = this.parse(Server)
+
+    const passphrase = process.env.SERVER_PASSPHRASE || passphraseFlag
 
     const sockets: {
       [id: string]: { [connection: string]: SocketConnection }
