@@ -43,6 +43,9 @@ jobs:
         run: |
           npm i -g yarn
           yarn install
+      - name: Compile TypeScript
+        run: |
+          yarn tsc
       - name: Build Docker image
         run: |
           export IMAGE_NAME=ghcr.io/kyujin-cho/websocket-tunnel:$(cat package.json| jq -r .version)
