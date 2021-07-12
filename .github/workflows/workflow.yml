@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Get current package version
-        run: package_version=$(cat package.json| jq -r .version) >> $GITHUB_ENV
+        run: echo package_version=$(cat package.json| jq -r .version) >> $GITHUB_ENV
       - name: Check if target version has been already published
         run: |
           echo current_version_json=$(curl https://api.github.com/users/kyujin-cho/packages/npm/websocket-tunnel/versions \
