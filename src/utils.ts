@@ -3,6 +3,7 @@ import { connection, IMessage } from 'websocket'
 
 const errorMap = {
   AUTHFAIL: 'Server authentication failed',
+  FORBIDDEN: 'Server access is limited with this credential',
   NOID: '#NOID: This should not happen. Try again with trace option enabled (with `-v trace` flag), capture console output and send to developer for additional help.',
   INVALIDID:
     '#INVALIDID: This should not happen. Try again with trace option enabled (with `-v trace` flag), capture console output and send to developer for additional help.',
@@ -14,6 +15,7 @@ const errorMap = {
 declare module 'websocket' {
   export interface connection {
     id: string
+    passphrase?: string
   }
 }
 
@@ -63,6 +65,11 @@ export class HostPortPair {
   }
 }
 
+export type ICredential = {
+  passphrase: string
+  allowed?: { [host: string]: number[] }
+}
+
 export const sendJSON = (conn: connection, log: Logger, body: any) => {
   const logOutput = { ...body }
   if (log.level !== 'trace' && logOutput.data) logOutput.data = '==TRUNCATED=='
@@ -97,3 +104,6 @@ export const isUTF8Message = (msg: IMessage): msg is IUTF8Message =>
   msg.type === 'utf8'
 export const isBinaryMessage = (msg: IMessage): msg is IBinaryMessage =>
   msg.type === 'binary'
+
+export const isWildcardPort = (port: number[] | '*'): port is '*' =>
+  port === '*'

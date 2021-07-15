@@ -1,5 +1,7 @@
 import { Command, flags } from '@oclif/command'
+import fs from 'fs'
 import http from 'http'
+import YAML from 'js-yaml'
 import net from 'net'
 import Pino from 'pino'
 import { v4 as UUIDv4 } from 'uuid'
@@ -7,7 +9,9 @@ import { server as WSServer } from 'websocket'
 
 import {
   HostPortPair,
+  ICredential,
   isUTF8Message,
+  isWildcardPort,
   logResponse,
   sendJSON,
   TunnelError,
@@ -68,19 +72,57 @@ export default class Server extends Command {
       default: 'info',
       description: 'Log output verbosity',
     }),
-    passphrase: flags.string({
-      char: 'P',
-      description:
-        'If provided, limit access to client only with appropriate passphrase provided. This value will be ignored if another passphrase is provided via environment variable SERVER_PASSPHRASE.',
+    passphraseFile: flags.string({
+      char: 'f',
+      description: 'File path to credential definition YAML',
     }),
   }
 
   async run() {
     const {
-      flags: { port, verbosity, passphrase: passphraseFlag },
+      flags: { port, verbosity, passphraseFile },
     } = this.parse(Server)
 
-    const passphrase = process.env.SERVER_PASSPHRASE || passphraseFlag
+    let credentials: { [key: string]: ICredential } | undefined = undefined
+    if (passphraseFile) {
+      const _credentials: { [key: string]: ICredential } = {}
+      const passphraseDefinitionFile = await new Promise<string>((res, rej) => {
+        fs.readFile(passphraseFile, 'utf-8', (err, data) => {
+          if (err) {
+            rej(err)
+          } else {
+            res(data)
+          }
+        })
+      })
+
+      const passphraseDefinitionYAML = YAML.load(
+        passphraseDefinitionFile
+      ) as any
+      passphraseDefinitionYAML.forEach((item) => {
+        if (item.allowed !== undefined) {
+          const allowedHosts: { [host: string]: number[] } = {}
+
+          item.allowed.forEach((hostPortPair) => {
+            const [host, port] = hostPortPair.split(':')
+            if (allowedHosts[host] === undefined) {
+              allowedHosts[host] = []
+            }
+
+            if (port === '*') {
+              allowedHosts[host].push(0)
+            } else {
+              allowedHosts[host].push(parseInt(port, 10))
+            }
+          })
+
+          item.allowed = allowedHosts
+        }
+
+        _credentials[item.passphrase] = item
+      })
+      credentials = _credentials
+    }
 
     const sockets: {
       [id: string]: { [connection: string]: SocketConnection }
@@ -89,7 +131,10 @@ export default class Server extends Command {
     log.level = verbosity
 
     const isAuthenticated = (body: any) => {
-      return !passphrase || passphrase === body.passphrase
+      if (!credentials) return true
+      const { passphrase } = body
+      if (!passphrase) return false
+      return credentials[passphrase] !== undefined
     }
 
     const httpServer = http.createServer((req, res) => {
@@ -120,6 +165,10 @@ export default class Server extends Command {
             if (!isAuthenticated(body)) {
               sendJSON(conn, log, { command: 'CONNECT', error: 'AUTHFAIL' })
               return
+            } else if (body.passphrase) {
+              const { passphrase } = body
+              conn.passphrase = passphrase
+              log.debug('Passphrase set to %s', passphrase)
             }
 
             sockets[conn.id] = {}
@@ -127,10 +176,44 @@ export default class Server extends Command {
           } else if (body.type === 'START') {
             if (!sockets[conn.id]) {
               sendJSON(conn, log, { command: body.type, error: 'AUTHFAIL' })
+              return
             }
             const pair = HostPortPair.fromBody(body)
             const socketConnection = new SocketConnection(pair)
             const id = UUIDv4()
+            const { passphrase } = conn
+
+            if (credentials) {
+              if (!passphrase) {
+                sendJSON(conn, log, { command: body.type, error: 'AUTHFAIL' })
+                return
+              }
+              const { allowed } = credentials[passphrase]
+
+              log.debug('Allowed hosts: %o', credentials)
+
+              if (allowed) {
+                if (!(allowed[pair.host] || allowed['*'])) {
+                  sendJSON(conn, log, {
+                    command: body.type,
+                    error: 'FORBIDDEN',
+                  })
+                  return
+                }
+
+                const allowedPorts = allowed[pair.host] || allowed['*']
+                if (
+                  allowedPorts.indexOf(pair.port) === -1 &&
+                  allowedPorts.indexOf(0) === -1
+                ) {
+                  sendJSON(conn, log, {
+                    command: body.type,
+                    error: 'FORBIDDEN',
+                  })
+                  return
+                }
+              }
+            }
 
             sendJSON(conn, log, {
               command: 'START',

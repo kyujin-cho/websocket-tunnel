@@ -11,3 +11,5 @@ doc/
 .VSCodeCounter/
 coverage/
 report/
+
+credentials.yml
